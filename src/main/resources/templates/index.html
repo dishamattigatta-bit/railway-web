@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Railway Route Finder</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2ff;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .card {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #1e3a8a;
+            text-align: center;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        p {
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 6px;
+            color: #334155;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 15px;
+            background-color: #f8fafc;
+            box-sizing: border-box;
+            outline: none;
+            cursor: pointer;
+        }
+        select:focus {
+            border-color: #3b82f6;
+        }
+        button {
+            width: 100%;
+            margin-top: 25px;
+            padding: 14px;
+            background-color: #1e40af;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #1e3a8a;
+        }
+        #result {
+            margin-top: 25px;
+            padding: 18px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>🚂 Railway Route Finder</h1>
+    <p>Find shortest route - Dijkstra Algorithm</p>
+
+    <label for="from">From Station:</label>
+    <select id="from">
+        <option value="">-- Select Source Station --</option>
+    </select>
+
+    <label for="to">To Station:</label>
+    <select id="to">
+        <option value="">-- Select Destination Station --</option>
+    </select>
+
+    <button type="button" onclick="calculateShortestPath()">Find Shortest Route</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    // Railway Network Graph (Station connections & distances in km)
+    const railwayGraph = {
+        "KSR Bengaluru": { "Yeshwanthpur": 6 },
+        "Yeshwanthpur": { "KSR Bengaluru": 6, "Hebbal": 5 },
+        "Bengaluru": { "Hebbal": 4 },
+        "Hebbal": { "Yeshwanthpur": 5, "Bengaluru": 4, "Yelahanka": 8 },
+        "Yelahanka": { "Hebbal": 8, "Dodballapur": 15, "Chikkaballapur": 28 },
+        "Chikkaballapur": { "Yelahanka": 28 },
+        "Dodballapur": { "Yelahanka": 15, "Gauribidanur": 22 },
+        "Gauribidanur": { "Dodballapur": 22, "Hindupur": 21 },
+        "Hindupur": { "Gauribidanur": 21, "Dharmavaram": 30 },
+        "Dharmavaram": { "Hindupur": 30, "Anantapur": 38 },
+        "Anantapur": { "Dharmavaram": 38, "Guntakal": 45 },
+        "Guntakal": { "Anantapur": 45, "Ballari": 52 },
+        "Ballari": { "Guntakal": 52 }
+    };
+
+    // Populate dropdowns with stations immediately
+    const stationList = Object.keys(railwayGraph).sort();
+    const fromSelect = document.getElementById('from');
+    const toSelect = document.getElementById('to');
+
+    stationList.forEach(station => {
+        const opt1 = document.createElement('option');
+        opt1.value = station;
+        opt1.textContent = station;
+        fromSelect.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = station;
+        opt2.textContent = station;
+        toSelect.appendChild(opt2);
+    });
+
+    // Dijkstra's Shortest Path Algorithm
+    function calculateShortestPath() {
+        const start = fromSelect.value;
+        const end = toSelect.value;
+        const resultDiv = document.getElementById('result');
+
+        if (!start || !end) {
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#fef2f2';
+            resultDiv.style.border = '1px solid #fecaca';
+            resultDiv.style.color = '#991b1b';
+            resultDiv.innerHTML = '<b>Please select both Source and Destination stations!</b>';
+            return;
+        }
+
+        if (start === end) {
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#eff6ff';
+            resultDiv.style.border = '1px solid #bfdbfe';
+            resultDiv.style.color = '#1e40af';
+            resultDiv.innerHTML = '<b>You are already at the destination! Distance: 0 km</b>';
+            return;
+        }
+
+        const distances = {};
+        const prev = {};
+        const unvisited = new Set(Object.keys(railwayGraph));
+
+        for (let node of unvisited) {
+            distances[node] = Infinity;
+        }
+        distances[start] = 0;
+
+        while (unvisited.size > 0) {
+            let current = null;
+            for (let node of unvisited) {
+                if (current === null || distances[node] < distances[current]) {
+                    current = node;
+                }
+            }
+
+            if (distances[current] === Infinity || current === end) break;
+            unvisited.delete(current);
+
+            for (let neighbor in railwayGraph[current]) {
+                let alt = distances[current] + railwayGraph[current][neighbor];
+                if (alt < distances[neighbor]) {
+                    distances[neighbor] = alt;
+                    prev[neighbor] = current;
+                }
+            }
+        }
+
+        if (distances[end] === Infinity) {
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#fef2f2';
+            resultDiv.style.border = '1px solid #fecaca';
+            resultDiv.style.color = '#991b1b';
+            resultDiv.innerHTML = '<b>No connected railway route found between these stations.</b>';
+            return;
+        }
+
+        const path = [];
+        let curr = end;
+        while (curr) {
+            path.unshift(curr);
+            curr = prev[curr];
+        }
+
+        resultDiv.style.display = 'block';
+        resultDiv.style.background = '#f0fdf4';
+        resultDiv.style.border = '1px solid #bbf7d0';
+        resultDiv.style.color = '#166534';
+        resultDiv.innerHTML = `
+            <div style="font-weight:600; color:#15803d; margin-bottom:8px;">Shortest Route Found:</div>
+            <div style="font-size:17px; font-weight:bold; margin-bottom:12px;">${path.join(' ➔ ')}</div>
+            <div style="font-size:15px; color:#1e3a8a;">Total Distance: <b>${distances[end]} km</b></div>
+        `;
+    }
+</script>
+
+</body>
+</html>
